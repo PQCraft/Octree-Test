@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
-#include "render.h"
+#include "renderer.h"
 #include "crc.h"
 
 #include <math.h>
@@ -30,25 +30,39 @@ static struct {
 
 static void calc_view_mat(struct vec3* pos, struct vec3* rot, float mat[4][4]);
 
+/* Find the vis node the camera is currently in */
 static struct map_node* find_vis_node(const struct map* map, struct vec3* pos) {
+    /* Start at the root node */
     struct map_node* node = &map->nodes[0];
     while (1) {
+        /* If the node is a 'parent' node */
         if (node->type == MAP_NODE_PARENT) {
+            /*
+                Follow the child closest the camera.
+                The children will never contain a -1 'none', so no '== -1' check
+                is needed.
+                Even if the space is empty, it must have a 'vis' node. That
+                'vis' node's child will just be -1 'none' instead.
+            */
             node = &map->nodes[node->data.parent.children[
                 (pos->x < node->pos.x) |
                 ((pos->y < node->pos.y) << 2) |
                 ((pos->z < node->pos.z) << 1)
             ]];
+        /* If the node is a 'vis' node */
         } else if (node->type == MAP_NODE_VIS) {
+            /* Found it, return the pointer */
             return node;
+        /* If something unexpected shows up (probably a 'geom' node) */
         } else {
+            /*
+                Raise an error (this means a bug in the map compiler).
+                There should never be any 'geom' nodes without a 'vis' node
+                wraping it.
+            */
             fputs("Expected node type of PARENT or VIS\n", stderr);
         }
     }
-}
-
-void set_render_mode(enum render_mode in) {
-    mode = in;
 }
 
 /* For px, py, and pz, + means "X/Y/Z is positive", - means "X/Y/Z is negative" */
@@ -62,25 +76,47 @@ void set_render_mode(enum render_mode in) {
 } while (0)
 #define RENDER_NODE_COLOR(mul) glColor3f(color[0] * mul, color[1] * mul, color[2] * mul)
 static unsigned render_node(const struct map* map, struct map_node* node, struct vec3* pos) {
+    /* If the node is a 'parent' node */
     if (node->type == MAP_NODE_PARENT) {
+        /*
+            Make a bitmask to change the order that children are rendered in.
+            The children are arranged in a specific order where:
+                .-----------------------------------------------.
+                | Index bit | Meaining                          |
+                |-----------------------------------------------|
+                | 0 (LSB)   | If 0, child is to the right (+X), |
+                |           | if 1, child is to the left (-X)   |
+                |-----------|-----------------------------------|
+                | 1         | If 0, child is forwards (+Z),     |
+                |           | if 1, child is backwards (-Z)     |
+                |-----------|-----------------------------------|
+                | 2         | If 0, child is up (+Y),           |
+                |           | if 1, child is down (-Y)          |
+                '-----------------------------------------------'
+            The goal is to draw the children that are closer to the camera before the ones farther away.
+            The bitmask inverts certain bits of the index based on where the camera is in relation to the node.
+            For example, if the camera is behind the node, the -Z children should be traversed first.
+        */
         unsigned xor_mask = (pos->x < node->pos.x) | ((pos->y < node->pos.y) << 2) | ((pos->z < node->pos.z) << 1);
         unsigned i;
         for (i = 0; i < 8; ++i) {
             unsigned child = node->data.parent.children[i ^ xor_mask];
-            if (child == -1U) continue;
-            if (!render_node(map, &map->nodes[child], pos)) return 0;
+            if (child == -1U) continue; /* Skip if child is set to 'none' */
+            if (!render_node(map, &map->nodes[child], pos)) return 0; /* Recursively traverse */
         }
+    /* If it is a 'geom' node */
     } else if (node->type == MAP_NODE_GEOM) {
+        /* Get a pointer to the shape */
         struct map_node_geom_shape* shape = &map->geom_shapes[node->data.geom.shape];
-        float offset = node->size * 0.5f;
+        float offset = node->size * 0.5f; /* Pre-calculate the offset from the center each face will be */
 
-        /* Generate a color off of the index */
         unsigned index;
         unsigned hash;
         static const float mul = 1.0f / 255.0f;
         float color[3];
         switch (mode) {
             case RENDER_MODE_NORMAL:
+                /* Generate a color off of the index */
                 index = (node - map->nodes);
                 hash = crc32(&index, sizeof(index));
                 color[0] = (((hash >> 16) & 255) | 64) * mul;
@@ -96,10 +132,10 @@ static unsigned render_node(const struct map* map, struct map_node* node, struct
         glBegin(GL_QUADS);
             /* Right face */
             if (mode == RENDER_MODE_NORMAL) RENDER_NODE_COLOR(0.8f);
-            RENDER_NODE_VERT(+, +, +);
-            RENDER_NODE_VERT(+, +, -);
-            RENDER_NODE_VERT(+, -, -);
-            RENDER_NODE_VERT(+, -, +);
+            RENDER_NODE_VERT(+, +, +); /* Send the (+X, +Y, +Z) vertex */
+            RENDER_NODE_VERT(+, +, -); /* Send the (+X, +Y, -Z) vertex */
+            RENDER_NODE_VERT(+, -, -); /* Send the (+X, -Y, -Z) vertex */
+            RENDER_NODE_VERT(+, -, +); /* Send the (+X, -Y, +Z) vertex */
             /* Left face */
             if (mode == RENDER_MODE_NORMAL) RENDER_NODE_COLOR(0.7f);
             RENDER_NODE_VERT(-, +, +);
@@ -131,8 +167,15 @@ static unsigned render_node(const struct map* map, struct map_node* node, struct
             RENDER_NODE_VERT(-, -, -);
             RENDER_NODE_VERT(+, -, -);
         glEnd();
+    /* If something unexpected shows up (probably a 'vis' node) */
     } else {
-        printf("[%d]\n", node->type);
+        /*
+            Raise an error (this means a bug in the map compiler).
+            The node used to render from is a 'vis' node, and its child is
+            passed in to this function to start traversing and rendering.
+            'vis' nodes should not be nested, so there should be no other 'vis'
+            nodes further down the tree.
+        */
         fputs("Expected node type of PARENT or GEOM\n", stderr);
         return 0;
     }
@@ -141,10 +184,14 @@ static unsigned render_node(const struct map* map, struct map_node* node, struct
 
 unsigned render(struct vec3* pos, struct vec3* rot) {
     unsigned child;
+    /* If the current 'vis' node pointer is not set yet, or the camera is outside of it */
     if (!cur_vis_node.ptr || !point_is_inside_box(pos, &cur_vis_node.min, &cur_vis_node.max)) {
         float offset;
+ 
+        /* Find the vis node the camera is in (or closest to) */
         cur_vis_node.ptr = find_vis_node(map, pos);
-        if (!cur_vis_node.ptr) return 0;
+ 
+        /* Calculate the min and max coords to use with point_is_inside_box() next time */
         offset = cur_vis_node.ptr->size * 0.5f;
         cur_vis_node.min.x = cur_vis_node.ptr->pos.x - offset;
         cur_vis_node.min.y = cur_vis_node.ptr->pos.y - offset;
@@ -183,14 +230,20 @@ unsigned render(struct vec3* pos, struct vec3* rot) {
     glMatrixMode(GL_MODELVIEW);
     glLoadMatrixf((float*)viewmat);
 
+    /* Start at the child of the current 'vis' node */
     child = cur_vis_node.ptr->data.vis.child;
+    /* Start rendering if it's not -1 'none', and return 0 if there is a problem */
     if (child != -1U && !render_node(map, &map->nodes[child], pos)) return 0;
+
     {
         unsigned* siblings = map->vis_sibs + cur_vis_node.ptr->data.vis.first_sibling;
         unsigned i;
+        /* For each sibling */
         for (i = 0; i < cur_vis_node.ptr->data.vis.sibling_count; ++i) {
             struct map_node* vis_node = &map->nodes[siblings[i]];
+            /* Get its child */
             child = vis_node->data.vis.child;
+            /* Start rendering if it's not -1 'none', and return 0 if there is a problem */
             if (child != -1U) {
                 /* TODO: Frustum culling */
                 if (!render_node(map, &map->nodes[child], pos)) return 0;
@@ -206,6 +259,10 @@ unsigned render(struct vec3* pos, struct vec3* rot) {
 void set_map(const struct map* in) {
     map = in;
     cur_vis_node.ptr = NULL;
+}
+
+void set_render_mode(enum render_mode in) {
+    mode = in;
 }
 
 static void calc_proj_mat(float aspect, float fov, float nearplane, float farplane, float mat[4][4]) {

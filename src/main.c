@@ -5,7 +5,7 @@
 #include <SDL2/SDL.h>
 
 #include "util.h"
-#include "render.h"
+#include "renderer.h"
 #include "compiler.h"
 
 #include <math.h>
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Failed to open '%s': %s\n", map_filename, strerror(errno));
             return 1;
         }
-        ok = compile_map(f, NULL, &map);
+        ok = compile_map(f, &map);
         fclose(f);
         if (!ok) {
             fputs("Failed to compile map\n", stderr);
@@ -121,8 +121,8 @@ int main(int argc, char** argv) {
         float delta = delta_us / 1000000.0;
         struct vec3 camera_movement = {0};
         float move_speed;
-        static const float walk_speed = 1.5;
-        static const float run_speed = 5.0;
+        static const float walk_speed = 2.0;
+        static const float run_speed = 8.0;
         SDL_Event event;
 
         /* Handle events */
@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
                                 fprintf(stderr, "Failed to open '%s': %s\n", map_filename, strerror(errno));
                                 break;
                             }
-                            ok = compile_map(f, NULL, &new_map);
+                            ok = compile_map(f, &new_map);
                             fclose(f);
                             if (!ok) {
                                 fputs("Failed to compile map\n", stderr);

@@ -1,5 +1,5 @@
-#ifndef OCTEST_RENDER_H
-#define OCTEST_RENDER_H
+#ifndef OCTEST_RENDERER_H
+#define OCTEST_RENDERER_H
 
 #include "util.h"
 #include "map.h"

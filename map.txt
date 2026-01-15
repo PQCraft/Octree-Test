@@ -72,19 +72,57 @@ shape wedge_back_left {
 };
 
 tree {
+
     parent( # children use the same order as shape points (see the example shape above)
-        ,,,, # <- skip the 4 +Y children
-        parent(,,,,
+
+        # ceiling
+        parent(
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            ,,,
+        ),
+        parent(
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            ,,,
+        ),
+        parent(
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            ,,,
+        ),
+        parent(
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            parent(geom(cube), geom(cube), geom(cube), geom(cube),,,,),
+            ,,,
+        ),
+
+        # floor
+        parent(
+            ,,,,
             geom(wedge_front_right), geom(wedge_front), geom(wedge_right), geom(cube)
         ),
-        parent(,,,,
+        parent(
+            ,,,,
             geom(wedge_front), geom(wedge_front_left), geom(cube), geom(wedge_left)
         ),
-        parent(,,,,
+        parent(
+            ,,,,
             geom(wedge_right), geom(cube), geom(wedge_back_right), geom(wedge_back)
         ),
-        parent(,,,,
+        parent(
+            ,,,,
             geom(cube), geom(wedge_left), geom(wedge_back), geom(wedge_back_left)
         )
+
     )
+
 };
