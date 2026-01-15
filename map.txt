@@ -1,0 +1,90 @@
+size 16;
+
+# example shape:
+# shape cube {
+#      1,  1,  1,  # (+X, +Y, +Z)
+#     -1,  1,  1,  # (-X, +Y, +Z)
+#      1,  1, -1,  # (+X, +Y, -Z)
+#     -1,  1, -1,  # (-X, +Y, -Z)
+#      1, -1,  1,  # (+X, -Y, +Z)
+#     -1, -1,  1,  # (-X, -Y, +Z)
+#      1, -1, -1,  # (+X, -Y, -Z)
+#     -1, -1, -1   # (-X, -Y, -Z)
+# };
+
+shape cube {,,,,,,,,,,,,,,,,,,,,,,,}; # <- values that are not provided default to the shape of a cube
+
+shape wedge_front {
+    , 0,, # <- move the Y coord in the +Z +Y points to the middle
+    , 0,, # <^
+    ,,,
+    ,,,
+    ,,,,,,,,,,, # <- skip the 4 -Y points
+};
+shape wedge_back {
+    ,,,
+    ,,,
+    , 0,,
+    , 0,,
+    ,,,,,,,,,,,
+};
+shape wedge_right {
+    , 0,,
+    ,,,
+    , 0,,
+    ,,,
+    ,,,,,,,,,,,
+};
+shape wedge_left {
+    ,,,
+    , 0,,
+    ,,,
+    , 0,,
+    ,,,,,,,,,,,
+};
+shape wedge_front_right {
+    , -1,,
+    , 0,,
+    , 0,,
+    ,,,
+    ,,,,,,,,,,,
+};
+shape wedge_front_left {
+    , 0,,
+    , -1,,
+    ,,,
+    , 0,,
+    ,,,,,,,,,,,
+};
+shape wedge_back_right {
+    , 0,,
+    ,,,
+    , -1,,
+    , 0,,
+    ,,,,,,,,,,,
+};
+shape wedge_back_left {
+    ,,,
+    , 0,,
+    , 0,,
+    , -1,,
+    ,,,,,,,,,,,
+};
+
+tree {
+    parent( # children use the same order as shape points (see the example shape above)
+        ,,,, # <- skip the 4 +Y children
+        parent(,,,,
+            geom(wedge_front_right), geom(wedge_front), geom(wedge_right), geom(cube)
+        ),
+        parent(,,,,
+            geom(wedge_front), geom(wedge_front_left), geom(cube), geom(wedge_left)
+        ),
+        parent(,,,,
+            geom(wedge_right), geom(cube), geom(wedge_back_right), geom(wedge_back)
+        ),
+        parent(,,,,
+            geom(cube), geom(wedge_left), geom(wedge_back), geom(wedge_back_left)
+        )
+    )
+};

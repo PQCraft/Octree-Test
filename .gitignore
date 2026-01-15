@@ -1,0 +1,11 @@
+*
+!/src/
+!/src/**
+!/*.sh
+!/LICENSE
+!/Makefile
+!/map.txt
+!/README.md
+.**
+!/.gitattributes
+!/.gitignore
